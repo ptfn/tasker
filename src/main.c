@@ -226,17 +226,11 @@ void print_table(WINDOW *win)
     mvwprintw(win, 2, max.x-12, "Date");
 
     while (sqlite3_step(tasker.stmt) == SQLITE_ROW) {
-<<<<<<< HEAD
-        mvwprintw(win, 3+(i-1), 2, "%d", i++);
-        mvwprintw(win, 3+(i-1), 6, "%s", sqlite3_column_text(tasker.stmt, 1)); 
-        mvwprintw(win, 3+(i-1), max.x-12, sqlite3_column_text(tasker.stmt, 2));
-=======
         const unsigned char *_tmp = sqlite3_column_text(tasker.stmt, 1);
         const char *_tmp1 = (const char*)sqlite3_column_text(tasker.stmt, 2);
 
         mvwprintw(win, 3+(i-1), 2, "%d  %s", i++, _tmp);
         mvwprintw(win, 3+(i-1), max.x-12, "%s", _tmp1);
->>>>>>> origin/HEAD
     }
 
     sqlite3_finalize(tasker.stmt);
