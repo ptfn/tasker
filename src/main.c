@@ -220,11 +220,13 @@ void print_table(WINDOW *win)
     }
 
     getmaxyx(win, max.y, max.x);
-    mvwprintw(win, 2, 2, "Id  Task");
+    mvwprintw(win, 2, 2, "Id");
+    mvwprintw(win, 2, 6, "Task");
     mvwprintw(win, 2, max.x-12, "Date");
 
     while (sqlite3_step(tasker.stmt) == SQLITE_ROW) {
-        mvwprintw(win, 3+(i-1), 2, "%d  %s", i++, sqlite3_column_text(tasker.stmt, 1)); 
+        mvwprintw(win, 3+(i-1), 2, "%d", i++);
+        mvwprintw(win, 3+(i-1), 6, "%s", sqlite3_column_text(tasker.stmt, 1)); 
         mvwprintw(win, 3+(i-1), max.x-12, sqlite3_column_text(tasker.stmt, 2));
     }
 
