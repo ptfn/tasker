@@ -27,12 +27,13 @@ void display_menu(WINDOW *win_menu, uint16_t xMaxM,
                   uint16_t yMax, int8_t i,
                   char *item, char list[3][5])
 {
+    int8_t j = 0;
     box(win_menu, 0, 0);
     
     mvwprintw(win_menu, 0, xMaxM/2-2, "%s", "Menu");
     mvwprintw(stdscr, yMax-1, 0, "Tasker %s", VERSION);
     
-    for (int8_t j = 0; j < 3; j++) {
+    for (; j < 3; j++) {
         if (i == j)
             wattron(win_menu, A_STANDOUT);
         else
@@ -111,7 +112,7 @@ uint8_t menu(void)
     delwin(win_menu);
     endwin();
 
-    return i;    
+    return i; 
 }
 
 /* Function Open or Create DB */
@@ -166,7 +167,7 @@ char *open(const char *title)
     keypad(win_open, TRUE); 
     curs_set(1);
 
-    while (true) {
+    for (;;) {
         getmaxyx(stdscr, temp.y, temp.x);
 
         if (max.x != temp.x || max.y != temp.y) {
@@ -181,7 +182,7 @@ char *open(const char *title)
 
         mvwgetstr(win_open, 2, 9, str);
 
-        if (strcmp(str, ""))
+        if (strlen(str) == 0)
             break;
     }
     delwin(win_open);
@@ -224,8 +225,11 @@ void print_table(WINDOW *win)
     mvwprintw(win, 2, max.x-12, "Date");
 
     while (sqlite3_step(tasker.stmt) == SQLITE_ROW) {
-        mvwprintw(win, 3+(i-1), 2, "%d  %s", i++, sqlite3_column_text(tasker.stmt, 1)); 
-        mvwprintw(win, 3+(i-1), max.x-12, sqlite3_column_text(tasker.stmt, 2));
+        const unsigned char *_tmp = sqlite3_column_text(tasker.stmt, 1);
+        const char *_tmp1 = (const char*)sqlite3_column_text(tasker.stmt, 2);
+
+        mvwprintw(win, 3+(i-1), 2, "%d  %s", i++, _tmp);
+        mvwprintw(win, 3+(i-1), max.x-12, "%s", _tmp1);
     }
 
     sqlite3_finalize(tasker.stmt);
@@ -267,7 +271,7 @@ void command(WINDOW *win, const char *command)
 /* Main Window */
 void task(void)
 {
-    size max, max_task, max_input;
+    size max, max_task, max_input __attribute__((unused));
     WINDOW *task, *input;
     bool run = true;
     uint16_t ch;
@@ -335,7 +339,7 @@ void init(void)
     curs_set(FALSE);
 }
 
-int main() {
+int main(void) {
     init();
     choice(menu());
     task();
