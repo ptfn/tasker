@@ -182,7 +182,7 @@ char *open(const char *title)
 
         mvwgetstr(win_open, 2, 9, str);
 
-        if (strlen(str) == 0)
+        if (strlen(str) != 0)
             break;
     }
     delwin(win_open);
