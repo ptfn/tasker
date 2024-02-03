@@ -1,13 +1,47 @@
-#include <sqlite3.h>
+// #include <sqlite3.h>
 #include <stdbool.h>
 #include <ncurses.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 
-#define VERSION "0.1.1"
+/* Macros */
+#define VERSION "0.2.0"
+#define SIZE_NAME_TASK  50
+#define SIZE_NAME_DESC  100
+#define NUM_TASK        64
+#define NUM_UNDER       32
 
+/* Structs */
+/* Struct Tasker DB */
+typedef struct task_t
+{
+    uint16_t count;
+    struct task
+    {
+        char name[SIZE_NAME_TASK];
+        struct unde
+        {
+            char description[SIZE_NAME_DESC];
+            uint32_t time;
+            _Bool active;
+        } under[NUM_UNDER];
+    } task[NUM_TASK];
+} task_t;
+
+/* Struct Size Window */
+typedef struct size
+{
+    uint16_t x, y;
+} size;
+
+/* Global Variable (replace?) */
+static task_t *tasker;
+static FILE *file;
+
+/*
 typedef struct sql
 {
     sqlite3_stmt *stmt;
@@ -16,13 +50,10 @@ typedef struct sql
     int rc;
 } sql;
 
-typedef struct size
-{
-    uint16_t x, y;
-} size;
-
 sql tasker;
+*/
 
+/* Display Sample Menu Window */
 void display_menu(WINDOW *win_menu, uint16_t xMaxM,
                   uint16_t yMax, int8_t i,
                   char *item, char list[3][5])
@@ -115,28 +146,35 @@ uint8_t menu(void)
     return i; 
 }
 
-/* Function Open or Create DB */
-void load(uint8_t menu_choice, char *name_db)
+/* Open File */
+FILE *open_file(char *fname, char *mode)
 {
-    tasker.err = 0;
-    tasker.rc = sqlite3_open(name_db, &tasker.db);
-
-    if (tasker.rc != SQLITE_OK) {
-        sqlite3_close(tasker.db);
+    FILE *file;
+    if ((file = fopen(fname, mode)) == NULL) {
+        perror("Error occured while opening file");
+        exit(EXIT_FAILURE);
     }
-
-    if (!(menu_choice)) {
-        char *sql = "DROP TABLE IF EXISTS task;"
-                    "CREATE TABLE task(id INTEGER PRIMARY KEY AUTOINCREMENT, task TEXT, time_date REAL);";
-        tasker.rc = sqlite3_exec(tasker.db, sql, 0, 0, &tasker.err);
-
-        if (tasker.rc != SQLITE_OK) {
-            sqlite3_free(tasker.err);
-            sqlite3_close(tasker.db);
-        }
-    }
+    return file;
 }
 
+/* Create Struct Tasker */
+void new(char *path)
+{
+    file = open_file(path, "wb"); 
+    tasker = (task_t*)calloc(1, sizeof(task_t));
+    tasker->count = 0;
+}
+
+/* Load Struct Tasker */
+void load(char *path)
+{
+    file = open_file(path, "rb+"); 
+    tasker = (task_t*)calloc(1, sizeof(task_t));
+    fread(tasker, sizeof(task_t), 1, file); 
+    rewind(file);
+}
+
+/* Display Sample Open Window  */
 void display_open(WINDOW *win_open, size max_open, const char *title)
 {
     wclear(win_open);
@@ -151,7 +189,7 @@ void display_open(WINDOW *win_open, size max_open, const char *title)
     wrefresh(win_open);
 }
 
-/* Window Input Name DB */
+/* Window Input Path DB */
 char *open(const char *title)
 {
     char *str = calloc(100, sizeof(char));
@@ -195,13 +233,14 @@ char *open(const char *title)
 void choice(uint8_t menu_choice)
 {
     if (menu_choice == 0 || menu_choice == 1) {
-        char *path = calloc(100, sizeof(char));
-        if (menu_choice)
+        char *path = calloc(300, sizeof(char));
+        if (menu_choice) {
             path = open("Load");
-        else
+            load(path);
+        } else {
             path = open("New");
-
-        load(menu_choice, path);
+            new(path);
+        }
     } else {
         exit(0);
     }
@@ -210,37 +249,20 @@ void choice(uint8_t menu_choice)
 /* Print Table On Window */
 void print_table(WINDOW *win)
 {
-    char *sql = "SELECT * FROM task";
-    uint16_t i = 1;
     size max;
-
-    tasker.rc = sqlite3_prepare_v2(tasker.db, sql, -1, &tasker.stmt, 0);
-
-    if (tasker.rc != SQLITE_OK) {
-        sqlite3_close(tasker.db);
-    }
 
     getmaxyx(win, max.y, max.x);
     mvwprintw(win, 2, 2, "Id");
     mvwprintw(win, 2, 6, "Task");
-    mvwprintw(win, 2, max.x-12, "Date");
-
-    while (sqlite3_step(tasker.stmt) == SQLITE_ROW) {
-        const unsigned char *_tmp = sqlite3_column_text(tasker.stmt, 1);
-        const char *_tmp1 = (const char*)sqlite3_column_text(tasker.stmt, 2);
-
-        mvwprintw(win, 3+(i-1), 2, "%d  %s", i++, _tmp);
-        mvwprintw(win, 3+(i-1), max.x-12, "%s", _tmp1);
+    for (uint16_t i = 0; i < tasker->count; i++) {
+        mvwprintw(win, 3+i, 2, "%d  %s", i+1, tasker->task[i].name);
     }
-
-    sqlite3_finalize(tasker.stmt);
 }
 
 /* Command Window Under SQL */
 void command(WINDOW *win, const char *command)
 {
     char *task = calloc(100, sizeof(char));
-    char *sql = calloc(200, sizeof(char));
                 
     echo();
     curs_set(1);
@@ -253,20 +275,26 @@ void command(WINDOW *win, const char *command)
     noecho();
     curs_set(0);
 
-    if (!(strcmp(command, "add")))
-        sprintf(sql, "INSERT INTO task (task, time_date) VALUES ('%s', date('now'));", task);
-    else if (!(strcmp(command, "del")))
-        sprintf(sql, "DELETE FROM task WHERE task='%s';", task);
-
-    tasker.rc = sqlite3_exec(tasker.db, sql, 0, 0, &tasker.err);
-                
-    if (tasker.rc != SQLITE_OK) {
-        sqlite3_free(tasker.err);
-        sqlite3_close(tasker.db);
+    if (!(strcmp(command, "add"))) {
+        if (tasker->count < NUM_TASK) {
+            strcpy(tasker->task[tasker->count].name, task);
+            tasker->count++;
+        }
+    } else if (!(strcmp(command, "del"))) {
+        int id_task = atoi(task)-1;
+        if (id_task < NUM_TASK && id_task > 0) {
+            memset(&tasker->task[id_task], 0, sizeof(task));
+            for (int i = id_task; i < tasker->count-1; i++) {
+                struct task *temp = (struct task*)calloc(1, sizeof(struct task)); 
+                memcpy(temp, &tasker->task[i+1], sizeof(struct task));
+                memcpy(&tasker->task[i+1], &tasker->task[i], sizeof(struct task));
+                memcpy(&tasker->task[i], temp, sizeof(struct task));
+            }
+            tasker->count--;
+        }
     }
-
+                
     free(task);
-    free(sql);
 }
 
 /* Main Window */
@@ -301,7 +329,7 @@ void task(void)
         box(task, 0, 0);
     
         mvwprintw(task, 0, max_task.x/2-3, "%s", "Tasker");  
-        mvwprintw(input, 0, 1, "%s", "Add (A)  Del (D)");
+        mvwprintw(input, 0, 1, "%s", "Add (A)  Del (D) Save (S)");
         
         print_table(task);
         
@@ -316,6 +344,10 @@ void task(void)
             case 'd': case 'D':
                 command(input, "del");
                 break; 
+            case 's': case 'S':
+                fwrite(tasker, sizeof(task_t), 1, file);
+                rewind(file);
+                break;
             // case 'c': case 'C': // active
             // case 'u': case 'u': // update
             case 'q': case 'Q':
@@ -324,7 +356,7 @@ void task(void)
         }
     }
 
-    sqlite3_close(tasker.db);
+    fclose(file);
     clear();
     delwin(task);
     endwin();
