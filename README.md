@@ -6,7 +6,7 @@ Tasker is a command line task list management utility with many features for dif
 
 ## Build
 ```
-sudo apt install libsqlite3-dev libncurses5-dev
+sudo apt install libncurses5-dev
 mkdir build && cd build
 cmake .. && make
 ```
