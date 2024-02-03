@@ -1,4 +1,3 @@
-// #include <sqlite3.h>
 #include <stdbool.h>
 #include <ncurses.h>
 #include <stdint.h>
@@ -40,18 +39,6 @@ typedef struct size
 /* Global Variable (replace?) */
 static task_t *tasker;
 static FILE *file;
-
-/*
-typedef struct sql
-{
-    sqlite3_stmt *stmt;
-    sqlite3 *db;
-    char *err;
-    int rc;
-} sql;
-
-sql tasker;
-*/
 
 /* Display Sample Menu Window */
 void display_menu(WINDOW *win_menu, uint16_t xMaxM,
@@ -348,8 +335,6 @@ void task(void)
                 fwrite(tasker, sizeof(task_t), 1, file);
                 rewind(file);
                 break;
-            // case 'c': case 'C': // active
-            // case 'u': case 'u': // update
             case 'q': case 'Q':
                 run = false;
                 break;
