@@ -13,7 +13,6 @@
 #define NUM_TASK        64
 #define NUM_UNDER       32
 
-/* Structs */
 /* Struct Tasker DB */
 typedef struct task_t
 {
@@ -236,17 +235,30 @@ void choice(uint8_t menu_choice)
 /* Print Table On Window */
 void print_table(WINDOW *win)
 {
+    const uint8_t CID = 2, CBAR = 3, CTASK = 7;
+    size_t y = 0, t = 0;
     size max;
 
     getmaxyx(win, max.y, max.x);
-    mvwprintw(win, 2, 2, "Id");
-    mvwprintw(win, 2, 6, "Task");
-    for (uint16_t i = 0; i < tasker->count; i++) {
-        mvwprintw(win, 3+i, 2, "%d  %s", i+1, tasker->task[i].name);
+    mvwprintw(win, 2, CID, "Id");
+    mvwprintw(win, 2, CTASK, "Task");
+
+    while (t < tasker->count) {
+        mvwprintw(win, CBAR+y, CID, "%ld", t+1);
+        size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
+        while (c < len) {
+            if ((CTASK+x) % (max.x-2) == 0) {
+                x = 0; y++;
+            }
+            mvwaddch(win, CBAR+y, CTASK+x, tasker->task[t].name[c]);
+            x++; c++;
+        }
+        t++; y++;
     }
+    mvwprintw(win, max.y-1, 0, "%dx%d", max.x, max.y);
 }
 
-/* Command Window Under SQL */
+/* Command Window DB */
 void command(WINDOW *win, const char *command)
 {
     char *task = calloc(100, sizeof(char));
@@ -279,16 +291,15 @@ void command(WINDOW *win, const char *command)
             }
             tasker->count--;
         }
-    }
-                
+    } 
     free(task);
 }
 
 /* Main Window */
 void task(void)
 {
-    size max, max_task, max_input __attribute__((unused));
     WINDOW *task, *input;
+    size max, max_task;
     bool run = true;
     uint16_t ch;
 
@@ -299,7 +310,6 @@ void task(void)
     task = newwin(max.y-1, max.x, 0, 0);
     input = newwin(1, max.x, max.y-1, 0);
     getmaxyx(task, max_task.y, max_task.x);
-    getmaxyx(input, max_input.y, max_input.x); 
     
     while (run) {
         getmaxyx(stdscr, max.y, max.x);
@@ -340,8 +350,9 @@ void task(void)
                 break;
         }
     }
-
+    free(tasker);
     fclose(file);
+
     clear();
     delwin(task);
     endwin();
