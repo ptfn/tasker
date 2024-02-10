@@ -1,5 +1,6 @@
 #include <stdbool.h>
 #include <ncurses.h>
+#include <unistd.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,7 +8,7 @@
 #include <time.h>
 
 /* Macros */
-#define VERSION "0.2.0"
+#define VERSION         "0.2.0"
 #define SIZE_NAME_TASK  50
 #define SIZE_NAME_DESC  100
 #define NUM_TASK        64
@@ -23,8 +24,8 @@ typedef struct task_t
         struct unde
         {
             char description[SIZE_NAME_DESC];
-            uint32_t time;
-            _Bool active;
+            time_t time;
+            bool active;
         } under[NUM_UNDER];
     } task[NUM_TASK];
 } task_t;
@@ -38,6 +39,26 @@ typedef struct size
 /* Global Variable (replace?) */
 static task_t *tasker;
 static FILE *file;
+
+/* Print Mesage */
+void message(const char *message)
+{
+    size_t msg_len = strlen(message);
+    size max, max_msg;
+    WINDOW *win_msg;
+
+    getmaxyx(stdscr, max.y, max.x);
+    win_msg = newwin(5, max.x/4, max.y/2-(5/2), max.x/2-(max.x/4)/2);
+    getmaxyx(win_msg, max_msg.y, max_msg.x);
+
+    box(win_msg, 0, 0);
+    mvwprintw(win_msg, max_msg.y/2, max_msg.x/2-(msg_len/2), "%s", message);
+    wrefresh(win_msg);
+
+    sleep(1);
+    delwin(win_msg);
+    endwin();
+}
 
 /* Display Sample Menu Window */
 void display_menu(WINDOW *win_menu, uint16_t xMaxM,
@@ -255,7 +276,7 @@ void print_table(WINDOW *win)
         }
         t++; y++;
     }
-    mvwprintw(win, max.y-1, 0, "%dx%d", max.x, max.y);
+    // mvwprintw(win, max.y-1, 0, "%dx%d", max.x, max.y);
 }
 
 /* Command Window DB */
@@ -281,7 +302,7 @@ void command(WINDOW *win, const char *command)
         }
     } else if (!(strcmp(command, "del"))) {
         int id_task = atoi(task)-1;
-        if (id_task < NUM_TASK && id_task > 0) {
+        if (id_task < NUM_TASK && id_task >= 0) {
             memset(&tasker->task[id_task], 0, sizeof(task));
             for (int i = id_task; i < tasker->count-1; i++) {
                 struct task *temp = (struct task*)calloc(1, sizeof(struct task)); 
@@ -323,9 +344,9 @@ void task(void)
         wclear(task);
         wclear(input);
 
-        box(task, 0, 0);
+        // box(task, 0, 0);
     
-        mvwprintw(task, 0, max_task.x/2-3, "%s", "Tasker");  
+        // mvwprintw(task, 0, max_task.x/2-3, "%s", "Tasker");  
         mvwprintw(input, 0, 1, "%s", "Add (A)  Del (D) Save (S)");
         
         print_table(task);
@@ -337,13 +358,16 @@ void task(void)
         switch (ch = wgetch(stdscr)) {
             case 'a': case 'A':
                 command(input, "add");
+                message("Added task");
                 break; 
             case 'd': case 'D':
                 command(input, "del");
+                message("Delete task");
                 break; 
             case 's': case 'S':
                 fwrite(tasker, sizeof(task_t), 1, file);
                 rewind(file);
+                message("Save tasks");
                 break;
             case 'q': case 'Q':
                 run = false;
@@ -366,6 +390,9 @@ void init(void)
     keypad(stdscr, TRUE);
     noecho();
     curs_set(FALSE);
+    use_default_colors();
+    start_color();
+
 }
 
 int main(void) {
