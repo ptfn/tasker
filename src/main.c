@@ -21,6 +21,7 @@ typedef struct task_t
     struct task
     {
         char name[SIZE_NAME_TASK];
+        uint16_t count;
         struct unde
         {
             char description[SIZE_NAME_DESC];
@@ -55,7 +56,7 @@ void message(const char *message)
     mvwprintw(win_msg, max_msg.y/2, max_msg.x/2-(msg_len/2), "%s", message);
     wrefresh(win_msg);
 
-    sleep(1);
+    usleep(5e5);
     delwin(win_msg);
     endwin();
 }
@@ -254,34 +255,53 @@ void choice(uint8_t menu_choice)
 }
 
 /* Print Table On Window */
-void print_table(WINDOW *win)
+void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
 {
-    const uint8_t CID = 2, CBAR = 3, CTASK = 7;
+    // FIXED PRINT UNDER TASK
+    const uint8_t CID = 2, CBAR = 1, CTASK = 7;
     size_t y = 0, t = 0;
-    size max;
+    size max_main, max_task;
 
-    getmaxyx(win, max.y, max.x);
-    mvwprintw(win, 2, CID, "Id");
-    mvwprintw(win, 2, CTASK, "Task");
+    getmaxyx(main, max_main.y, max_main.x);
+    getmaxyx(task, max_task.y, max_task.x);
+    mvwprintw(title, 0, CID, "Id");
+    mvwprintw(title, 0, 5, "/");
+    mvwprintw(title, 0, CTASK, "Task");
 
     while (t < tasker->count) {
-        mvwprintw(win, CBAR+y, CID, "%ld", t+1);
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
+
+        if (i == t) {
+            wattron(main, COLOR_PAIR(3));
+            char buffer_time[12];
+            for (uint16_t j = 0; j < tasker->task[i].count; j++) {
+                mvwprintw(task, j+1, 2, "%s", tasker->task[i].under[j].description);
+                strftime(buffer_time, 12, "%Y-%m-%d", localtime(&tasker->task[i].under[j].time));
+                mvwprintw(task, j+1, max_task.x-12, "%s", buffer_time);
+            }
+        }
+
+        mvwprintw(main, CBAR+y, CID, "%ld", t+1);
+
         while (c < len) {
-            if ((CTASK+x) % (max.x-2) == 0) {
+            if ((CTASK+x) % (max_main.x-2) == 0) {
                 x = 0; y++;
             }
-            mvwaddch(win, CBAR+y, CTASK+x, tasker->task[t].name[c]);
+            mvwaddch(main, CBAR+y, CTASK+x, tasker->task[t].name[c]);
             x++; c++;
         }
+        wattroff(main, COLOR_PAIR(3));
         t++; y++;
     }
-    // mvwprintw(win, max.y-1, 0, "%dx%d", max.x, max.y);
 }
 
 /* Command Window DB */
-void command(WINDOW *win, const char *command)
+void command(WINDOW *win, const char *command, int8_t i)
 {
+    /*
+     * ADD DELETE ON I VAR
+     * DIVIDE FUNCTION 
+     */ 
     char *task = calloc(100, sizeof(char));
                 
     echo();
@@ -301,7 +321,8 @@ void command(WINDOW *win, const char *command)
             tasker->count++;
         }
     } else if (!(strcmp(command, "del"))) {
-        int id_task = atoi(task)-1;
+        // int id_task = atoi(task)-1;
+        int id_task = i;
         if (id_task < NUM_TASK && id_task >= 0) {
             memset(&tasker->task[id_task], 0, sizeof(task));
             for (int i = id_task; i < tasker->count-1; i++) {
@@ -312,56 +333,89 @@ void command(WINDOW *win, const char *command)
             }
             tasker->count--;
         }
-    } 
+    } else if (!(strcmp(command, "new"))) {
+        if (tasker->task[i].count < NUM_UNDER) {
+            strcpy(tasker->task[i].under[tasker->task[i].count].description, task);
+            tasker->task[i].under[tasker->task[i].count].time = time(NULL);
+            tasker->task[i].count++;
+        }
+    }
     free(task);
 }
 
 /* Main Window */
 void task(void)
 {
-    WINDOW *task, *input;
+    WINDOW *task, *input, *title, *under;
     size max, max_task;
     bool run = true;
     uint16_t ch;
+    int8_t i = 0;
 
     noecho();
     curs_set(0);
 
     getmaxyx(stdscr, max.y, max.x);
-    task = newwin(max.y-1, max.x, 0, 0);
+    task = newwin(max.y-2, max.x/100.0*40, 1, 0);
+    under = newwin(max.y-2, max.x/100.0*60, 1, max.x/100.0*40);
     input = newwin(1, max.x, max.y-1, 0);
+    title = newwin(1, max.x, 0, 0);
     getmaxyx(task, max_task.y, max_task.x);
+
+    wbkgd(title, COLOR_PAIR(2));
+    wbkgd(input, COLOR_PAIR(2));
+    wbkgd(task, COLOR_PAIR(1));
     
     while (run) {
         getmaxyx(stdscr, max.y, max.x);
-        wresize(task, max.y-1, max.x);
+        wresize(title, 1, max.x);
+        wresize(task, max.y-2, max.x/100.0*40);
+        mvwin(task, 1, 0);
+        wresize(under, max.y-2, max.x/100.0*60);
+        mvwin(under, 1, max.x/100.0*40);
         wresize(input, 1, max.x);
         mvwin(input, max.y-1, 0);
         getmaxyx(task, max_task.y, max_task.x);
           
-        clear();
+        // clear();
         wclear(stdscr);
         wclear(task);
         wclear(input);
+        wclear(title);
+        wclear(under);
 
-        // box(task, 0, 0);
-    
-        // mvwprintw(task, 0, max_task.x/2-3, "%s", "Tasker");  
-        mvwprintw(input, 0, 1, "%s", "Add (A)  Del (D) Save (S)");
-        
-        print_table(task);
+        box(task, 0, 0);
+        box(under, 0, 0);
+
+        mvwprintw(input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New");
+        mvwprintw(title, 0, max.x/100.0*40+2, "Description");
+        print_table(title, task, under, i);
         
         wrefresh(stdscr);
         wrefresh(task);
         wrefresh(input);
+        wrefresh(title);
+        wrefresh(under);
 
         switch (ch = wgetch(stdscr)) {
+            case KEY_UP:
+                i--;
+                i = (i < 0) ? tasker->count-1 : i;
+                break;
+            case KEY_DOWN:
+                i++;
+                i = (i > tasker->count-1) ? 0 : i;
+                break;
             case 'a': case 'A':
-                command(input, "add");
+                command(input, "add", i);
                 message("Added task");
                 break; 
+            case 'n': case 'N':
+                command(input, "new", i);
+                message("Added under task");
+                break;
             case 'd': case 'D':
-                command(input, "del");
+                command(input, "del", i);
                 message("Delete task");
                 break; 
             case 's': case 'S':
@@ -377,8 +431,11 @@ void task(void)
     free(tasker);
     fclose(file);
 
-    clear();
+    // clear();
     delwin(task);
+    delwin(input);
+    delwin(title);
+    delwin(under);
     endwin();
 }
 
@@ -392,7 +449,9 @@ void init(void)
     curs_set(FALSE);
     use_default_colors();
     start_color();
-
+    init_pair(1, COLOR_WHITE, COLOR_BLACK);
+    init_pair(2, COLOR_WHITE, COLOR_BLUE);
+    init_pair(3, COLOR_BLACK, COLOR_CYAN);
 }
 
 int main(void) {
