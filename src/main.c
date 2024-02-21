@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <time.h>
+#include <math.h>
 
 /* Macros */
 #define VERSION         "0.2.0"
@@ -13,6 +14,8 @@
 #define SIZE_NAME_DESC  100
 #define NUM_TASK        64
 #define NUM_UNDER       32
+#define DELAY           5e5
+#define ENTER           10
 
 /* Struct Tasker DB */
 typedef struct task_t
@@ -22,7 +25,7 @@ typedef struct task_t
     {
         char name[SIZE_NAME_TASK];
         uint16_t count;
-        struct unde
+        struct under
         {
             char description[SIZE_NAME_DESC];
             time_t time;
@@ -36,6 +39,9 @@ typedef struct size
 {
     uint16_t x, y;
 } size;
+
+/* Enum Commands Tasker */
+enum keys {ADD, DEL, SAVE, NEW, EXT, UP, DWN};
 
 /* Global Variable (replace?) */
 static task_t *tasker;
@@ -56,7 +62,7 @@ void message(const char *message)
     mvwprintw(win_msg, max_msg.y/2, max_msg.x/2-(msg_len/2), "%s", message);
     wrefresh(win_msg);
 
-    usleep(5e5);
+    usleep(DELAY);
     delwin(win_msg);
     endwin();
 }
@@ -108,7 +114,7 @@ uint8_t menu(void)
     
     i = 0;
 
-    while ((ch = wgetch(win_menu)) != 10) {
+    while ((ch = wgetch(win_menu)) != ENTER) {
         getmaxyx(stdscr, temp.y, temp.x);
 
         if (temp.y != max.y || temp.x != max.x) {
@@ -270,6 +276,7 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
 
     while (t < tasker->count) {
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
+        mvwprintw(main, CBAR+y, CID, "%ld", t+1);
 
         if (i == t) {
             wattron(main, COLOR_PAIR(3));
@@ -280,8 +287,6 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
                 mvwprintw(task, j+1, max_task.x-12, "%s", buffer_time);
             }
         }
-
-        mvwprintw(main, CBAR+y, CID, "%ld", t+1);
 
         while (c < len) {
             if ((CTASK+x) % (max_main.x-2) == 0) {
@@ -296,7 +301,7 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
 }
 
 /* Command Window DB */
-void command(WINDOW *win, const char *command, int8_t i)
+void input(WINDOW *win, const char *command, int8_t i)
 {
     /*
      * ADD DELETE ON I VAR
@@ -315,12 +320,14 @@ void command(WINDOW *win, const char *command, int8_t i)
     noecho();
     curs_set(0);
 
+    // BAG NO LIMIT LEN STRING
     if (!(strcmp(command, "add"))) {
         if (tasker->count < NUM_TASK) {
             strcpy(tasker->task[tasker->count].name, task);
             tasker->count++;
         }
     } else if (!(strcmp(command, "del"))) {
+        // Maybe index delete
         // int id_task = atoi(task)-1;
         int id_task = i;
         if (id_task < NUM_TASK && id_task >= 0) {
@@ -343,99 +350,169 @@ void command(WINDOW *win, const char *command, int8_t i)
     free(task);
 }
 
+/* Quit Menu */
+// BAG RESIZE WINDOW
+void quit(WINDOW *win_input, bool *run)
+{
+    uint16_t ch;
+
+    wclear(win_input);
+    mvwprintw(win_input, 0, 1, "Quit tasker? [y/N]");
+    wrefresh(win_input);
+
+    while ((ch = wgetch(stdscr)) != ENTER && ch != 'n' && ch != 'N') {
+        if (ch == 'y' || ch == 'Y') {
+            *run = false; 
+            break;
+        }
+    }
+}
+
+/* Command Tasker */
+void command(enum keys key, WINDOW *win_input, int8_t *i, bool *run)
+{
+    switch (key) {
+        case ADD:
+            input(win_input, "add", *i);
+            message("Added task");
+            break;
+        case DEL:
+            input(win_input, "del", *i);
+            message("Delete task");
+            break;
+        case SAVE:
+            fwrite(tasker, sizeof(task_t), 1, file);
+            rewind(file);
+            message("Save tasks");
+            break;
+        case NEW:
+            input(win_input, "new", *i);
+            message("Added under task");
+            break;
+        case EXT:
+            quit(win_input, run);
+            break;
+        case UP:
+            *i = *i - 1;
+            *i = (*i < 0) ? tasker->count-1 : *i;
+            break;
+        case DWN:
+            *i = *i + 1;
+            *i = (*i > tasker->count-1) ? 0 : *i;
+            break;
+   } 
+}
+
 /* Main Window */
 void task(void)
 {
-    WINDOW *task, *input, *title, *under;
+    WINDOW *task, *win_input, *title, *under;
     size max, max_task;
     bool run = true;
-    uint16_t ch;
     int8_t i = 0;
+    uint16_t ch;
+    MEVENT ms;
 
     noecho();
     curs_set(0);
+    mousemask(BUTTON1_CLICKED|BUTTON4_PRESSED|BUTTON5_PRESSED, NULL);
 
     getmaxyx(stdscr, max.y, max.x);
-    task = newwin(max.y-2, max.x/100.0*40, 1, 0);
-    under = newwin(max.y-2, max.x/100.0*60, 1, max.x/100.0*40);
-    input = newwin(1, max.x, max.y-1, 0);
+    task = newwin(max.y-2, round(max.x/100.0*40.0), 1, 0);
+    under = newwin(max.y-2, round(max.x/100.0*60.0), 1, round(max.x/100.0*40.0));
+    win_input = newwin(1, max.x, max.y-1, 0);
     title = newwin(1, max.x, 0, 0);
     getmaxyx(task, max_task.y, max_task.x);
 
     wbkgd(title, COLOR_PAIR(2));
-    wbkgd(input, COLOR_PAIR(2));
+    wbkgd(win_input, COLOR_PAIR(2));
     wbkgd(task, COLOR_PAIR(1));
     
     while (run) {
         getmaxyx(stdscr, max.y, max.x);
         wresize(title, 1, max.x);
-        wresize(task, max.y-2, max.x/100.0*40);
+        wresize(task, max.y-2, round(max.x/100.0*40.0));
         mvwin(task, 1, 0);
-        wresize(under, max.y-2, max.x/100.0*60);
-        mvwin(under, 1, max.x/100.0*40);
-        wresize(input, 1, max.x);
-        mvwin(input, max.y-1, 0);
+        wresize(under, max.y-2, round(max.x/100.0*60.0));
+        mvwin(under, 1, round(max.x/100.0*40.0));
+        wresize(win_input, 1, max.x);
+        mvwin(win_input, max.y-1, 0);
         getmaxyx(task, max_task.y, max_task.x);
           
         // clear();
         wclear(stdscr);
         wclear(task);
-        wclear(input);
+        wclear(win_input);
         wclear(title);
         wclear(under);
 
         box(task, 0, 0);
         box(under, 0, 0);
 
-        mvwprintw(input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New");
-        mvwprintw(title, 0, max.x/100.0*40+2, "Description");
+        mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New");
+        mvwprintw(title, 0, round(max.x/100.0*40.0)+2, "Description");
+        mvwprintw(title, 0, max.x-12, "Date");
         print_table(title, task, under, i);
         
         wrefresh(stdscr);
         wrefresh(task);
-        wrefresh(input);
+        wrefresh(win_input);
         wrefresh(title);
         wrefresh(under);
 
         switch (ch = wgetch(stdscr)) {
+            // Mouse controle
+            case KEY_MOUSE:
+                if (getmouse(&ms) == OK) {
+                    if (ms.bstate & BUTTON4_PRESSED)
+                        command(UP, win_input, &i, &run);
+                    else if (ms.bstate & BUTTON5_PRESSED)
+                        command(DWN, win_input, &i, &run);
+                    else if (ms.bstate & BUTTON1_CLICKED)
+                        if (ms.y == max.y-1) {
+                            if (ms.x > 0 && ms.x < 8)
+                                command(ADD, win_input, &i, &run);
+                            else if (ms.x > 9 && ms.x < 17)
+                                command(DEL, win_input, &i, &run);
+                            else if (ms.x > 18 && ms.x < 27)
+                                command(SAVE, win_input, &i, &run);
+                            else if (ms.x > 28 && ms.x < 36)
+                                command(NEW, win_input, &i, &run);
+                        }
+                } break;
+
+            // Keyboard controle
             case KEY_UP:
-                i--;
-                i = (i < 0) ? tasker->count-1 : i;
+                command(UP, win_input, &i, &run);
                 break;
             case KEY_DOWN:
-                i++;
-                i = (i > tasker->count-1) ? 0 : i;
+                command(DWN, win_input, &i, &run);
                 break;
             case 'a': case 'A':
-                command(input, "add", i);
-                message("Added task");
-                break; 
+                command(ADD, win_input, &i, &run);
+                break;
             case 'n': case 'N':
-                command(input, "new", i);
-                message("Added under task");
+                command(NEW, win_input, &i, &run);
                 break;
             case 'd': case 'D':
-                command(input, "del", i);
-                message("Delete task");
-                break; 
+                command(DEL, win_input, &i, &run);
+                break;
             case 's': case 'S':
-                fwrite(tasker, sizeof(task_t), 1, file);
-                rewind(file);
-                message("Save tasks");
+                command(SAVE, win_input, &i, &run);
                 break;
             case 'q': case 'Q':
-                run = false;
+                command(EXT, win_input, &i, &run);
                 break;
         }
     }
     free(tasker);
     fclose(file);
 
-    // clear();
     delwin(task);
-    delwin(input);
+    delwin(win_input);
     delwin(title);
     delwin(under);
+    clear();
     endwin();
 }
 
