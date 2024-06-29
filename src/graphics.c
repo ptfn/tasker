@@ -13,6 +13,7 @@ void init(void)
     init_pair(1, COLOR_WHITE, COLOR_BLACK);
     init_pair(2, COLOR_WHITE, COLOR_BLUE);
     init_pair(3, COLOR_BLACK, COLOR_CYAN);
+    init_pair(4, COLOR_BLACK, COLOR_WHITE);
     mousemask(BUTTON1_CLICKED | BUTTON4_PRESSED | BUTTON5_PRESSED, NULL);
 }
 
@@ -35,7 +36,7 @@ void quit(WINDOW *win_input, bool *run)
 }
 
 /* Print Table On Window */
-void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
+void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *cursor)
 {
     // FIXED PRINT UNDER TASK //
     const uint8_t CID = 2, CBAR = 1, CTASK = 7;
@@ -57,14 +58,17 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i)
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
         mvwprintw(main, CBAR+y, CID, "%ld", t+1);
 
-        if (i == t) {
-            wattron(main, COLOR_PAIR(3));
+        if (cursor->task == t) {
             char buffer_time[12];
-            for (uint16_t j = 0; j < tasker->task[i].count; j++) {
+            for (uint16_t j = 0; j < tasker->task[cursor->task].count; j++) {
                 mvwprintw(task, j+1, 2, "%s", tasker->task[i].under[j].description);
                 strftime(buffer_time, 12, "%Y-%m-%d", localtime(&tasker->task[i].under[j].time));
                 mvwprintw(task, j+1, max_task.x-12, "%s", buffer_time);
             }
+        }
+
+        if (cursor->task == t && !cursor->status) {
+            wattron(main, COLOR_PAIR(3));
         }
 
         while (c < len) {

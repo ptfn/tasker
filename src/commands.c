@@ -58,7 +58,7 @@ void del_task(int8_t i)
         memset(&tasker->task[i], 0, sizeof(task));
         for (int j = i; j < tasker->count-1; j++) {
             struct task *temp = (struct task*)calloc(1, sizeof(struct task)); 
-            // MAYBE SEPARATE FUNCTION
+            // MAYBE TAKE OUT FUNCTION
             memcpy(temp, &tasker->task[j+1], sizeof(struct task));
             memcpy(&tasker->task[j+1], &tasker->task[j], sizeof(struct task));
             memcpy(&tasker->task[j], temp, sizeof(struct task));
@@ -80,15 +80,16 @@ void new_under(char *text, int8_t i)
 }
 
 /* Command Tasker */
-void command(enum keys key, WINDOW *win_input, int8_t *i, bool *run)
+void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run)
 {
+    // REPLACE ARGS "i" to CURSOR AND UNDER ELEMENT STRUCT //
     switch (key) {
         case ADD:
-            add_task(input(win_input, "add"), *i);
+            add_task(input(win_input, "add"), 1);
             message("Added task");
             break;
         case DEL:
-            del_task(*i);
+            del_task(1);
             message("Delete task");
             break;
         case SAVE:
@@ -97,19 +98,42 @@ void command(enum keys key, WINDOW *win_input, int8_t *i, bool *run)
             message("Save tasks");
             break;
         case NEW:
-            new_under(input(win_input, "new"), *i);
+            new_under(input(win_input, "new"), 1);
             message("Added under task");
             break;
         case EXIT:
             quit(win_input, run);
             break;
         case UP:
+            // cursor
+#if 0
             *i = *i - 1;
             *i = (*i < 0) ? tasker->count-1 : *i;
+#endif
+            if (cursor->status) {
+                cursor->under = cursor->under - 1;
+                cursor->under = (cursor->under < 0) ? tasker->task[cursor->task].count-1 : cursor->under;
+            } else {
+                cursor->task = cursor->task - 1;
+                cursor->task = (cursor->task < 0) ? tasker->count-1 : cursor->task;
+            }
             break;
         case DWN:
+#if 0
             *i = *i + 1;
             *i = (*i > tasker->count-1) ? 0 : *i;
+#endif
+            if (cursor->status) {
+                cursor->under = cursor->under + 1;
+                cursor->under = (cursor->under > tasker->task[cursor->task].count-1) ? 0 : cursor->under;
+            } else {
+                cursor->task = cursor->task + 1;
+                cursor->task = (cursor->task > tasker->count-1) ? 0 : cursor->task;
+            }
+            break;
+        case TAB:
+            cursor->status = cursor->status ? 0 : 1;
+            // switch cursor  
             break;
    } 
 }
@@ -120,6 +144,7 @@ void task(void)
     /* Init Variable */
     WINDOW *task, *win_input, *title, *under;
     size max_std, max_new;
+    cursor_t *cursor = calloc(1, sizeof(cursor_t));
     bool run = true;
     int8_t i = 0;
     uint16_t ch;
@@ -147,10 +172,10 @@ void task(void)
         if (max_new.x != max_std.x || max_new.y != max_std.y) {
             getmaxyx(stdscr, max_std.y, max_std.x);
             wresize(title, 1, max_std.x);
-            wresize(task, max_std.y-2, round(max_std.x/100.0*40.0));
+            wresize(task, max_std.y-2, round(max_std.x/100.0*PERC_TASK));
             mvwin(task, 1, 0);
-            wresize(under, max_std.y-2, round(max_std.x/100.0*60.0));
-            mvwin(under, 1, round(max_std.x/100.0*40.0));
+            wresize(under, max_std.y-2, round(max_std.x/100.0*PERC_UNDER));
+            mvwin(under, 1, round(max_std.x/100.0*PERC_TASK));
             wresize(win_input, 1, max_std.x);
             mvwin(win_input, max_std.y-1, 0);
         }
@@ -166,7 +191,7 @@ void task(void)
         mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New");
         mvwprintw(title, 0, round(max_std.x/100.0*PERC_TASK)+2, "Description");
         mvwprintw(title, 0, max_std.x-12, "Date");
-        print_table(title, task, under, i);
+        print_table(title, task, under, i, cursor);
 
         wrefresh(task);
         wrefresh(win_input);
@@ -178,44 +203,47 @@ void task(void)
             case KEY_MOUSE:
                 if (getmouse(&ms) == OK) {
                     if (ms.bstate & BUTTON4_PRESSED)
-                        command(UP, win_input, &i, &run);
+                        command(UP, win_input, cursor, &run);
                     else if (ms.bstate & BUTTON5_PRESSED)
-                        command(DWN, win_input, &i, &run);
+                        command(DWN, win_input, cursor, &run);
                     else if (ms.bstate & BUTTON1_CLICKED)
                         if (ms.y == max_std.y-1) {
                             /* Commands Panel */
                             if (ms.x > 0 && ms.x < 8)
-                                command(ADD, win_input, &i, &run);
+                                command(ADD, win_input, cursor, &run);
                             else if (ms.x > 9 && ms.x < 17)
-                                command(DEL, win_input, &i, &run);
+                                command(DEL, win_input, cursor, &run);
                             else if (ms.x > 18 && ms.x < 27)
-                                command(SAVE, win_input, &i, &run);
+                                command(SAVE, win_input, cursor, &run);
                             else if (ms.x > 28 && ms.x < 36)
-                                command(NEW, win_input, &i, &run);
+                                command(NEW, win_input, cursor, &run);
                         }
                 } break;
 
             // Keyboard controle
             case KEY_UP:
-                command(UP, win_input, &i, &run);
+                command(UP, win_input, cursor, &run);
                 break;
             case KEY_DOWN:
-                command(DWN, win_input, &i, &run);
+                command(DWN, win_input, cursor, &run);
+                break;
+            case TAB_KEY:
+                command(TAB, win_input, cursor, &run);
                 break;
             case 'a': case 'A':
-                command(ADD, win_input, &i, &run);
+                command(ADD, win_input, cursor, &run);
                 break;
             case 'n': case 'N':
-                command(NEW, win_input, &i, &run);
+                command(NEW, win_input, cursor, &run);
                 break;
             case 'd': case 'D':
-                command(DEL, win_input, &i, &run);
+                command(DEL, win_input, cursor, &run);
                 break;
             case 's': case 'S':
-                command(SAVE, win_input, &i, &run);
+                command(SAVE, win_input, cursor, &run);
                 break;
             case 'q': case 'Q':
-                command(EXIT, win_input, &i, &run);
+                command(EXIT, win_input, cursor, &run);
                 break;
         }
     }

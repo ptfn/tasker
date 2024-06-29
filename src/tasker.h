@@ -24,6 +24,7 @@
 #define LEN_FNAME       255
 #define DELAY_MSG       5e5
 #define ENTER_KEY       10
+#define TAB_KEY         9
 
 /* Struct Tasker DB */
 typedef struct task_t
@@ -48,17 +49,16 @@ typedef struct size
     uint16_t x, y;
 } size;
 
-#if 0 
 typedef struct cursor_t
 {
-    uint8_t task;
-    uint8_t under;
+    // not signed
+    int16_t task;
+    int16_t under;
     bool status;
 } cursor_t;
-#endif
 
 /* Enum Commands Tasker */
-enum keys {ADD, DEL, SAVE, NEW, EXIT, UP, DWN};
+enum keys {ADD, DEL, SAVE, NEW, EXIT, UP, DWN, TAB};
 
 /* Extern Global Variable */
 extern task_t *tasker;
@@ -76,10 +76,10 @@ void load_file(char *path);
 void display_open(WINDOW *win_open, size max_open, const char *title);
 char *open(const char *title);
 void choice(uint8_t menu_choice);
-void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i);
+void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *cursor);
 char *input(WINDOW *win, const char *command);
 void quit(WINDOW *win_input, bool *run);
-void command(enum keys key, WINDOW *win_input, int8_t *i, bool *run);
+void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run);
 void add_task(char *text, int8_t i);
 void del_task(int8_t i);
 void new_under(char *text, int8_t i);
