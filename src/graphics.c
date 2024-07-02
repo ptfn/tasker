@@ -57,18 +57,28 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
     while (t < tasker->count) {
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
         mvwprintw(main, CBAR+y, CID, "%ld", t+1);
-
         if (cursor->task == t) {
             char buffer_time[12];
+            // new print under task //
             for (uint16_t j = 0; j < tasker->task[cursor->task].count; j++) {
-                mvwprintw(task, j+1, 2, "%s", tasker->task[i].under[j].description);
-                strftime(buffer_time, 12, "%Y-%m-%d", localtime(&tasker->task[i].under[j].time));
+                if (cursor->under == j && cursor->status) {
+                    wattron(task, COLOR_PAIR(3));
+                } else if (cursor->under == j && !cursor->status) {
+                    wattron(task, COLOR_PAIR(4));
+                }
+ 
+                mvwprintw(task, j+1, 2, "%s", tasker->task[cursor->task].under[j].description);
+                strftime(buffer_time, 12, "%Y-%m-%d", localtime(&tasker->task[cursor->task].under[j].time));
                 mvwprintw(task, j+1, max_task.x-12, "%s", buffer_time);
+                wattroff(task, COLOR_PAIR(3));
+                wattroff(task, COLOR_PAIR(4));
             }
         }
 
         if (cursor->task == t && !cursor->status) {
             wattron(main, COLOR_PAIR(3));
+        } else if (cursor->task == t && cursor->status){
+            wattron(main, COLOR_PAIR(4));
         }
 
         while (c < len) {
@@ -79,6 +89,7 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
             x++; c++;
         }
         wattroff(main, COLOR_PAIR(3));
+        wattroff(main, COLOR_PAIR(4));
         t++; y++;
     }
     wrefresh(stdscr);

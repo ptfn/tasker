@@ -41,7 +41,7 @@ void load_file(char *path)
 }
 
 /* Add Item */
-void add_task(char *text, int8_t i) // int8_t normally? wtf not get arg
+void add_task(char *text)
 {
     if (tasker->count < NUM_TASK) {
         strcpy(tasker->task[tasker->count].name, text);
@@ -51,30 +51,48 @@ void add_task(char *text, int8_t i) // int8_t normally? wtf not get arg
 }
 
 /* Delete Item */
-void del_task(int8_t i)
+void del_task(cursor_t *cursor)
 {
-    int id_task = i;
-    if (i < NUM_TASK && i >= 0) {
-        memset(&tasker->task[i], 0, sizeof(task));
-        for (int j = i; j < tasker->count-1; j++) {
-            struct task *temp = (struct task*)calloc(1, sizeof(struct task)); 
-            // MAYBE TAKE OUT FUNCTION
-            memcpy(temp, &tasker->task[j+1], sizeof(struct task));
-            memcpy(&tasker->task[j+1], &tasker->task[j], sizeof(struct task));
-            memcpy(&tasker->task[j], temp, sizeof(struct task));
-            free(temp);
+    int id_task = cursor->task;
+    if (id_task < NUM_TASK && id_task >= 0) { // why? cursor?
+        if (!cursor->status) {
+            // method zero under task
+            memset(&tasker->task[cursor->task], 0, sizeof(struct task)); // why memset?
+            for (int j = cursor->task; j < tasker->count-1; j++) {
+                swap(&tasker->task[j+1], &tasker->task[j], sizeof(struct task));
+            }
+            tasker->count--;
+        } else {
+            memset(&tasker->task[cursor->task].under[cursor->under], 0, sizeof(struct under));
+            for (int j = cursor->under; j < tasker->task[cursor->task].count-1; j++) {
+                swap(&tasker->task[cursor->task].under[j+1], 
+                     &tasker->task[cursor->task].under[j], 
+                     sizeof(struct under));
+            }
+            tasker->task[cursor->task].count--;
         }
-        tasker->count--;
     }
 }
 
 /* Add Under Task */
-void new_under(char *text, int8_t i)
+void new_under(char *text, cursor_t *cursor)
 {
-    if (tasker->task[i].count < NUM_UNDER) {
-        strcpy(tasker->task[i].under[tasker->task[i].count].description, text);
-        tasker->task[i].under[tasker->task[i].count].time = time(NULL);
-        tasker->task[i].count++;
+    if (tasker->task[cursor->task].count < NUM_UNDER) {
+        strcpy(tasker->task[cursor->task].under[tasker->task[cursor->task].count].description, text);
+        tasker->task[cursor->task].under[tasker->task[cursor->task].count].time = time(NULL);
+        tasker->task[cursor->task].count++;
+    }
+    free(text);
+}
+
+void update_task(char *text, cursor_t *cursor)
+{
+    if (!cursor->status) {
+        if (cursor->task < NUM_TASK)
+            strcpy(tasker->task[cursor->task].name, text);
+    } else {
+        if (cursor->under < NUM_UNDER)
+            strcpy(tasker->task[cursor->task].under[cursor->under].description, text);
     }
     free(text);
 }
@@ -83,14 +101,19 @@ void new_under(char *text, int8_t i)
 void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run)
 {
     // REPLACE ARGS "i" to CURSOR AND UNDER ELEMENT STRUCT //
+    // READY? //
     switch (key) {
         case ADD:
-            add_task(input(win_input, "add"), 1);
+            add_task(input(win_input, "add"));
             message("Added task");
             break;
         case DEL:
-            del_task(1);
+            del_task(cursor);
             message("Delete task");
+            break;
+        case UPD:
+            update_task(input(win_input, "upd"), cursor);
+            message("Update task");
             break;
         case SAVE:
             fwrite(tasker, sizeof(task_t), 1, file);
@@ -98,44 +121,36 @@ void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run)
             message("Save tasks");
             break;
         case NEW:
-            new_under(input(win_input, "new"), 1);
+            new_under(input(win_input, "new"), cursor);
             message("Added under task");
             break;
         case EXIT:
             quit(win_input, run);
             break;
         case UP:
-            // cursor
-#if 0
-            *i = *i - 1;
-            *i = (*i < 0) ? tasker->count-1 : *i;
-#endif
             if (cursor->status) {
                 cursor->under = cursor->under - 1;
                 cursor->under = (cursor->under < 0) ? tasker->task[cursor->task].count-1 : cursor->under;
             } else {
+                cursor->under = 0;
                 cursor->task = cursor->task - 1;
                 cursor->task = (cursor->task < 0) ? tasker->count-1 : cursor->task;
             }
             break;
         case DWN:
-#if 0
-            *i = *i + 1;
-            *i = (*i > tasker->count-1) ? 0 : *i;
-#endif
             if (cursor->status) {
                 cursor->under = cursor->under + 1;
                 cursor->under = (cursor->under > tasker->task[cursor->task].count-1) ? 0 : cursor->under;
             } else {
+                cursor->under = 0;
                 cursor->task = cursor->task + 1;
                 cursor->task = (cursor->task > tasker->count-1) ? 0 : cursor->task;
             }
             break;
         case TAB:
             cursor->status = cursor->status ? 0 : 1;
-            // switch cursor  
             break;
-   } 
+    } 
 }
 
 /* Main Window */
@@ -188,7 +203,7 @@ void task(void)
         box(task, 0, 0);
         box(under, 0, 0);
 
-        mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New");
+        mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New  [U] Upd");
         mvwprintw(title, 0, round(max_std.x/100.0*PERC_TASK)+2, "Description");
         mvwprintw(title, 0, max_std.x-12, "Date");
         print_table(title, task, under, i, cursor);
@@ -227,7 +242,7 @@ void task(void)
             case KEY_DOWN:
                 command(DWN, win_input, cursor, &run);
                 break;
-            case TAB_KEY:
+            case TAB_KEY: case KEY_LEFT: case KEY_RIGHT:
                 command(TAB, win_input, cursor, &run);
                 break;
             case 'a': case 'A':
@@ -241,6 +256,9 @@ void task(void)
                 break;
             case 's': case 'S':
                 command(SAVE, win_input, cursor, &run);
+                break;
+            case 'u': case 'U':
+                command(UPD, win_input, cursor, &run);
                 break;
             case 'q': case 'Q':
                 command(EXIT, win_input, cursor, &run);

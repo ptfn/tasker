@@ -58,7 +58,7 @@ typedef struct cursor_t
 } cursor_t;
 
 /* Enum Commands Tasker */
-enum keys {ADD, DEL, SAVE, NEW, EXIT, UP, DWN, TAB};
+enum keys {ADD, DEL, UPD, SAVE, NEW, EXIT, UP, DWN, TAB};
 
 /* Extern Global Variable */
 extern task_t *tasker;
@@ -71,6 +71,7 @@ void display_menu(WINDOW *win_menu, uint16_t xMaxM,
                   char *item, char list[3][5]);
 uint8_t menu(void);
 FILE *open_file(char *fname, char *mode);
+void swap(void *a, void *b, size_t l);
 void new_file(char *path);
 void load_file(char *path);
 void display_open(WINDOW *win_open, size max_open, const char *title);
@@ -80,9 +81,9 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
 char *input(WINDOW *win, const char *command);
 void quit(WINDOW *win_input, bool *run);
 void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run);
-void add_task(char *text, int8_t i);
-void del_task(int8_t i);
-void new_under(char *text, int8_t i);
+void add_task(char *text);
+void del_task(cursor_t *cursor);
+void new_under(char *text, cursor_t *cursor);
 void task(void);
 void init(void);
 
