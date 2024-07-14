@@ -41,7 +41,7 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
     // FIXED PRINT UNDER TASK //
     const uint8_t CID = 2, CBAR = 1, CTASK = 7;
     size_t y = 0, t = 0;
-    size max_main, max_task;
+    size max_main, max_task, max_std;
 
     wclear(stdscr);
     wclear(title);
@@ -50,16 +50,21 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
 
     getmaxyx(main, max_main.y, max_main.x);
     getmaxyx(task, max_task.y, max_task.x);
+    getmaxyx(stdscr, max_std.y, max_std.x);
+
     mvwprintw(title, 0, CID, "Id");
     mvwprintw(title, 0, 5, "/");
     mvwprintw(title, 0, CTASK, "Task");
+    mvwprintw(title, 0, round(max_std.x/100.0*PERC_TASK)+2, "Description");
+    mvwprintw(title, 0, max_std.x-12, "Date");
+    mvwprintw(title, 0, max_std.x-22, "Status");
 
     while (t < tasker->count) {
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
         mvwprintw(main, CBAR+y, CID, "%ld", t+1);
         if (cursor->task == t) {
             char buffer_time[12];
-            // new print under task //
+            // New Print Under Task //
             for (uint16_t j = 0; j < tasker->task[cursor->task].count; j++) {
                 if (cursor->under == j && cursor->status) {
                     wattron(task, COLOR_PAIR(3));
@@ -68,8 +73,34 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
                 }
  
                 mvwprintw(task, j+1, 2, "%s", tasker->task[cursor->task].under[j].description);
-                strftime(buffer_time, 12, "%Y-%m-%d", localtime(&tasker->task[cursor->task].under[j].time));
+                
+                wattroff(task, COLOR_PAIR(3));
+                wattroff(task, COLOR_PAIR(4));
+
+                strftime(buffer_time,
+                         12, 
+                         "%Y-%m-%d", 
+                         localtime(&tasker->task[cursor->task].under[j].time));
                 mvwprintw(task, j+1, max_task.x-12, "%s", buffer_time);
+
+                char status[10] = {0};
+                
+                switch (tasker->task[cursor->task].under[j].status) {
+                    case 0:
+                        strcpy(status, "To Do");
+                        break;
+                    case 1:
+                        strcpy(status, "In Prog");
+                        break;
+                    case 2:
+                        strcpy(status, "Done");
+                        break;
+                    default: 
+                        strcpy(status, "NOT");
+                        break; 
+                }
+
+                mvwprintw(task, j+1, max_task.x-22, "%s", status);
                 wattroff(task, COLOR_PAIR(3));
                 wattroff(task, COLOR_PAIR(4));
             }
@@ -266,6 +297,7 @@ void message(const char *message)
 }
 
 /* Input Line */
+// BAG RESIZE WINDOW
 char *input(WINDOW *win, const char *command)
 {
     char *task = calloc(SIZE_NAME_TASK, sizeof(char));
@@ -277,7 +309,7 @@ char *input(WINDOW *win, const char *command)
     wclear(win);
     mvwprintw(win, 0, 1, "Enter (%s): ", command);
     wrefresh(win);
-    mvwgetstr(win, 0, 14, task);
+    mvwgetstr(win, 0, 14, task); // OVERFLOW COMMAND
 
     /* Cursor OFF */
     noecho();

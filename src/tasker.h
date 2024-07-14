@@ -38,7 +38,7 @@ typedef struct task_t
         {
             char description[SIZE_NAME_DESC];
             time_t time;
-            bool active;
+            uint8_t status;
         } under[NUM_UNDER];
     } task[NUM_TASK];
 } task_t;
@@ -58,7 +58,7 @@ typedef struct cursor_t
 } cursor_t;
 
 /* Enum Commands Tasker */
-enum keys {ADD, DEL, UPD, SAVE, NEW, EXIT, UP, DWN, TAB};
+enum keys {ADD, DEL, UPD, SAVE, NEW, EXIT, UP, DWN, TAB, CHN};
 
 /* Extern Global Variable */
 extern task_t *tasker;

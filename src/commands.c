@@ -80,6 +80,7 @@ void new_under(char *text, cursor_t *cursor)
     if (tasker->task[cursor->task].count < NUM_UNDER) {
         strcpy(tasker->task[cursor->task].under[tasker->task[cursor->task].count].description, text);
         tasker->task[cursor->task].under[tasker->task[cursor->task].count].time = time(NULL);
+        tasker->task[cursor->task].under[tasker->task[cursor->task].count].status = 0;
         tasker->task[cursor->task].count++;
     }
     free(text);
@@ -95,6 +96,15 @@ void update_task(char *text, cursor_t *cursor)
             strcpy(tasker->task[cursor->task].under[cursor->under].description, text);
     }
     free(text);
+}
+
+void change_status(cursor_t *cursor)
+{
+    uint8_t *status = &tasker->task[cursor->task].under[cursor->under].status;
+    if (cursor->status) {
+        *status = *status + 1; 
+        *status = (*status > 2) ? 0 : *status; 
+    }
 }
 
 /* Command Tasker */
@@ -114,6 +124,9 @@ void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run)
         case UPD:
             update_task(input(win_input, "upd"), cursor);
             message("Update task");
+            break;
+        case CHN:
+            change_status(cursor);
             break;
         case SAVE:
             fwrite(tasker, sizeof(task_t), 1, file);
@@ -203,9 +216,7 @@ void task(void)
         box(task, 0, 0);
         box(under, 0, 0);
 
-        mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New  [U] Upd");
-        mvwprintw(title, 0, round(max_std.x/100.0*PERC_TASK)+2, "Description");
-        mvwprintw(title, 0, max_std.x-12, "Date");
+        mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New  [U] Update [C] Change");
         print_table(title, task, under, i, cursor);
 
         wrefresh(task);
@@ -232,6 +243,7 @@ void task(void)
                                 command(SAVE, win_input, cursor, &run);
                             else if (ms.x > 28 && ms.x < 36)
                                 command(NEW, win_input, cursor, &run);
+                            // add new buttons
                         }
                 } break;
 
@@ -259,6 +271,9 @@ void task(void)
                 break;
             case 'u': case 'U':
                 command(UPD, win_input, cursor, &run);
+                break;
+            case 'c': case 'C':
+                command(CHN, win_input, cursor, &run);
                 break;
             case 'q': case 'Q':
                 command(EXIT, win_input, cursor, &run);
