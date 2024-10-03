@@ -11,13 +11,14 @@ FILE *open_file(char *fname, char *mode)
     return file;
 }
 
-void swap(void *a, void *b, size_t l)
+/* Swap Struct Byte */
+void swap(void *a, void *b, size_t size)
 {
     // REPLACE memcpy to memccpy function
-    void *temp = calloc(1, l); 
-    memcpy(temp, a, l);
-    memcpy(a, b, l);
-    memcpy(b, temp, l);
+    void *temp = calloc(1, size); 
+    memcpy(temp, a, size);
+    memcpy(a, b, size);
+    memcpy(b, temp, size);
     free(temp);
 }
 

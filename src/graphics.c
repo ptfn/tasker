@@ -19,6 +19,7 @@ void init(void)
 
 /* Quit Menu */
 // BAG RESIZE WINDOW //
+// MAKE FUNCTION RESIZE WINDOW
 void quit(WINDOW *win_input, bool *run)
 {
     int16_t ch; // 16 or 32
@@ -39,7 +40,11 @@ void quit(WINDOW *win_input, bool *run)
 void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *cursor)
 {
     // FIXED PRINT UNDER TASK //
-    const uint8_t CID = 2, CBAR = 1, CTASK = 7;
+    // SIZE DESCRIPTION UNDER TASK AND TASK MADE IN MC
+    // LIST SCROLL
+    // CONTACT TEXTS FUNCTION
+    // MINI UNDER TASK FORMAT (TASK (T:P:D))
+    const uint8_t CBAR = 1, CTASK = 2;
     size_t y = 0, t = 0;
     size max_main, max_task, max_std;
 
@@ -52,8 +57,6 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
     getmaxyx(task, max_task.y, max_task.x);
     getmaxyx(stdscr, max_std.y, max_std.x);
 
-    mvwprintw(title, 0, CID, "Id");
-    mvwprintw(title, 0, 5, "/");
     mvwprintw(title, 0, CTASK, "Task");
     mvwprintw(title, 0, round(max_std.x/100.0*PERC_TASK)+2, "Description");
     mvwprintw(title, 0, max_std.x-12, "Date");
@@ -61,7 +64,7 @@ void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *
 
     while (t < tasker->count) {
         size_t x = 0, c = 0, len = strlen(tasker->task[t].name);
-        mvwprintw(main, CBAR+y, CID, "%ld", t+1);
+
         if (cursor->task == t) {
             char buffer_time[12];
             // New Print Under Task //
@@ -176,7 +179,7 @@ void display_open(WINDOW *win_open, size max_open, const char *title)
 
     box(win_open, 0, 0);
 
-    mvwprintw(win_open, 0, max_open.x/2-2, "%s", title);
+    mvwprintw(win_open, 0, max_open.x/2-4, "%s File", title);
     mvwprintw(win_open, max_open.y/2, 2, "%s", "Enter:");
 
     wrefresh(stdscr);

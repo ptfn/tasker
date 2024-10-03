@@ -1,4 +1,5 @@
 #include "tasker.h"
+#include <curses.h>
 
 /* Global Variable */
 task_t *tasker;
@@ -110,8 +111,6 @@ void change_status(cursor_t *cursor)
 /* Command Tasker */
 void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run)
 {
-    // REPLACE ARGS "i" to CURSOR AND UNDER ELEMENT STRUCT //
-    // READY? //
     switch (key) {
         case ADD:
             add_task(input(win_input, "add"));
@@ -216,8 +215,17 @@ void task(void)
         box(task, 0, 0);
         box(under, 0, 0);
 
+        // PRINT INTERFACE WHEN NEW DATA?
         mvwprintw(win_input, 0, 1, "%s", "[A] Add  [D] Del  [S] Save  [N] New  [U] Update [C] Change");
         print_table(title, task, under, i, cursor);
+        
+        #if DEBUG
+        size max_task, max_under;
+        getmaxyx(task, max_task.y, max_task.x);
+        getmaxyx(under, max_under.y, max_under.x);
+        mvwprintw(task, 0, 0, "%dx%d", max_task.x, max_task.y);
+        mvwprintw(under, 0, 0, "%dx%d", max_under.x, max_under.y);
+        #endif
 
         wrefresh(task);
         wrefresh(win_input);

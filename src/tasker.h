@@ -13,13 +13,12 @@
 #include <math.h>
 
 /* Macros */
-#define VERSION         "0.3.0"
 #define SIZE_NAME_TASK  50
 #define SIZE_NAME_DESC  100
 #define NUM_TASK        64
 #define NUM_UNDER       32
-#define PERC_TASK       40.0
-#define PERC_UNDER      60.0
+#define PERC_TASK       30.0
+#define PERC_UNDER      70.0
 #define LEN_PATH        4096
 #define LEN_FNAME       255
 #define DELAY_MSG       5e5
@@ -77,7 +76,8 @@ void load_file(char *path);
 void display_open(WINDOW *win_open, size max_open, const char *title);
 char *open(const char *title);
 void choice(uint8_t menu_choice);
-void print_table(WINDOW *title, WINDOW *main, WINDOW *task, int8_t i, cursor_t *cursor);
+void print_table(WINDOW *title, WINDOW *main, WINDOW *task, 
+                 int8_t i, cursor_t *cursor);
 char *input(WINDOW *win, const char *command);
 void quit(WINDOW *win_input, bool *run);
 void command(enum keys key, WINDOW *win_input, cursor_t *cursor, bool *run);
